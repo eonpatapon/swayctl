@@ -49,6 +49,25 @@ fn main() {
                         .help("The destination workspace name"),
                 ),
         )
+        .subcommand(
+            SubCommand::with_name("merge")
+                .about("Merge container with other container")
+                .arg(
+                    Arg::with_name("direction")
+                        .required(true)
+                        .help("Direction in which to merge the container (left/right/up/down)"),
+                )
+                .arg(
+                    Arg::with_name("orientation")
+                        .required(true)
+                        .help("Split mode (Horizontal/vertical)"),
+                )
+                .arg(
+                    Arg::with_name("layout")
+                        .required(true)
+                        .help("Layout type to use (default/tabbed/stacking)"),
+                ),
+        )
         .subcommand(SubCommand::with_name("list").about("List all workspaces"))
         .subcommand(SubCommand::with_name("swap").about("Swap visible workspaces"));
 
@@ -73,6 +92,11 @@ fn main() {
         ("move", Some(args)) => move_to(ws, args.value_of("name").unwrap().to_string()),
         ("list", Some(_args)) => list(ws),
         ("swap", Some(_args)) => swap(ws),
+        ("merge", Some(args)) => merge(
+            Direction::from_str(args.value_of("direction").unwrap()),
+            Orientation::from_str(args.value_of("orientation").unwrap()),
+            Layout::from_str(args.value_of("layout").unwrap()),
+        ),
         _ => Err("".to_string()),
     };
 
@@ -92,6 +116,86 @@ fn main() {
 // An i3 compatible command. Can contain several commands separated
 // with ';'
 type Command = String;
+
+enum Direction {
+    Left,
+    Right,
+    Up,
+    Down,
+}
+
+impl Direction {
+    fn inverse(&self) -> Direction {
+        match self {
+            Direction::Left => Direction::Right,
+            Direction::Right => Direction::Left,
+            Direction::Up => Direction::Down,
+            Direction::Down => Direction::Up,
+        }
+    }
+    fn from_str(s: &str) -> Option<Direction> {
+        match s {
+            "left" => Some(Direction::Left),
+            "right" => Some(Direction::Right),
+            "up" => Some(Direction::Up),
+            "down" => Some(Direction::Down),
+            _ => None,
+        }
+    }
+    fn as_str(&self) -> &'static str {
+        match self {
+            Direction::Left => "left",
+            Direction::Right => "right",
+            Direction::Up => "up",
+            Direction::Down => "down",
+        }
+    }
+}
+
+enum Orientation {
+    Horizontal,
+    Vertical,
+}
+
+impl Orientation {
+    fn from_str(s: &str) -> Option<Orientation> {
+        match s {
+            "horizontal" => Some(Orientation::Horizontal),
+            "vertical" => Some(Orientation::Vertical),
+            _ => None,
+        }
+    }
+    fn as_str(&self) -> &'static str {
+        match self {
+            Orientation::Horizontal => "horizontal",
+            Orientation::Vertical => "vertical",
+        }
+    }
+}
+
+enum Layout {
+    Default,
+    Tabbed,
+    Stacking,
+}
+
+impl Layout {
+    fn from_str(s: &str) -> Option<Layout> {
+        match s {
+            "default" => Some(Layout::Default),
+            "tabbed" => Some(Layout::Tabbed),
+            "stacking" => Some(Layout::Stacking),
+            _ => None,
+        }
+    }
+    fn as_str(&self) -> &'static str {
+        match self {
+            Layout::Default => "default",
+            Layout::Tabbed => "tabbed",
+            Layout::Stacking => "stacking",
+        }
+    }
+}
 
 // Store workspace attributes used to identify a workspace
 #[derive(PartialEq, Debug)]
@@ -326,6 +430,34 @@ fn swap(ws: reply::Workspaces) -> Result<Option<Command>, String> {
     let other = visible.iter().find(|&w| !w.focused).unwrap();
 
     Ok(Some(current.swap_with(other).join("; ")))
+}
+
+fn merge(
+    d: Option<Direction>,
+    o: Option<Orientation>,
+    l: Option<Layout>,
+) -> Result<Option<Command>, String> {
+    let mut cmds = Vec::new();
+
+    if let None = d {
+        return Err("Unknown direction".to_string());
+    }
+    if let None = o {
+        return Err("Unknown orientation".to_string());
+    }
+    if let None = l {
+        return Err("Unknown layout".to_string());
+    }
+
+    let direction = d.unwrap();
+
+    cmds.push(format!("focus {}", direction.as_str()));
+    cmds.push(format!("split {}", o.unwrap().as_str()));
+    cmds.push(format!("focus {}", direction.inverse().as_str()));
+    cmds.push(format!("move {}", direction.as_str()));
+    cmds.push(format!("layout {}", l.unwrap().as_str()));
+
+    Ok(Some(cmds.join("; ")))
 }
 
 #[test]

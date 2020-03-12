@@ -13,7 +13,7 @@ nix run -f https://github.com/nlewo/swayctl/archive/master.tar.gz -c swayctl --h
 
 ### The `swayctl` usage
 
-    swayctl 
+    swayctl
 
     USAGE:
         swayctl [FLAGS] <SUBCOMMAND>
@@ -61,11 +61,15 @@ nix run -f https://github.com/nlewo/swayctl/archive/master.tar.gz -c swayctl --h
     }
 
     # Move a container to a named workspace
-    bindsym $mod+Shift+x exec swayctl list | dmenu -p "Move container to workspace: " | xargs swayctl move 
+    bindsym $mod+Shift+x exec swayctl list | dmenu -p "Move container to workspace: " | xargs swayctl move
 
     # Switch or create a named workspace
     # Tip: use Shift+Return to ignore the completion of dmenu
     bindsym $mod+x exec swayctl list | dmenu -p "Show or create workspace: " | xargs -I{} swayctl show-by-name "{}"
 
     # Rename the current workspace
-    bindsym $mod+Shift+Control+x exec echo "" | dmenu -p "Rename workspace: " | xargs swayctl rename 
+    bindsym $mod+Shift+Control+x exec echo "" | dmenu -p "Rename workspace: " | xargs swayctl rename
+
+    # Merge focused container with left/right container
+    bindsym $mod+Control+Left swayctl merge left vertical stacking
+    bindsym $mod+Control+Right swayctl merge right vertical stacking
